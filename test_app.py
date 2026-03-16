@@ -9,11 +9,17 @@ def client():
     with app.test_client() as client:
         yield client
 
+def get_json_or_empty_list(response):
+    data = response.get_json()
+    if isinstance(data, dict) and "message" in data and data["message"].startswith("No transactions found"):
+        return []
+    return data
+
 def test_get_transactions_success(client):
     # Test with a valid customer_id and default date range (last 12 months)
     response = client.get("/transactions?customer_id=123")
     assert response.status_code == 200
-    data = response.get_json()
+    data = get_json_or_empty_list(response)
     assert isinstance(data, list)
     assert len(data) > 0
     for transaction in data:
@@ -47,7 +53,7 @@ def test_get_transactions_end_date_in_future(client):
 def test_get_transactions_filter_by_date_range(client):
     response = client.get("/transactions?customer_id=123&start_date=2023-01-01&end_date=2023-02-28")
     assert response.status_code == 200
-    data = response.get_json()
+    data = get_json_or_empty_list(response)
     assert len(data) == 3  # T001, T002, T003 are within this range
     for transaction in data:
         t_date = datetime.strptime(transaction["transaction_date"], "%Y-%m-%d")
@@ -56,7 +62,7 @@ def test_get_transactions_filter_by_date_range(client):
 def test_get_transactions_filter_by_type(client):
     response = client.get("/transactions?customer_id=123&type=credit")
     assert response.status_code == 200
-    data = response.get_json()
+    data = get_json_or_empty_list(response)
     assert len(data) > 0
     for transaction in data:
         assert transaction["transaction_type"] == "credit"
@@ -64,7 +70,7 @@ def test_get_transactions_filter_by_type(client):
 def test_get_transactions_filter_by_amount_range(client):
     response = client.get("/transactions?customer_id=123&min_amount=100&max_amount=300")
     assert response.status_code == 200
-    data = response.get_json()
+    data = get_json_or_empty_list(response)
     assert len(data) > 0
     for transaction in data:
         assert 100 <= transaction["amount"] <= 300
