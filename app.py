@@ -170,7 +170,7 @@ class TransactionHistory(Resource):
         if not filtered_transactions:
             return {"message": "No transactions found for the selected criteria."}, 200
 
-        return jsonify(filtered_transactions)
+        return filtered_transactions, 200 # Return data and status code
 
 
 class TransactionDownload(Resource):
@@ -179,18 +179,27 @@ class TransactionDownload(Resource):
         if not customer_id:
             return {"message": "customer_id is required"}, 400
 
-        # Re-use filtering logic from TransactionHistory
-        # This is a simplified approach; in a real app, you might refactor
-        # the filtering logic into a separate service/module.
-        with app.test_request_context(path='/transactions', query_string=request.args):
-            response = TransactionHistory().get()
-            if response[1] != 200: # Check status code
-                return response # Return error from TransactionHistory
-            
-            filtered_transactions = response[0].json # Extract JSON data from response
+        # Call the TransactionHistory.get method directly to get data and status
+        transactions_data, status_code = TransactionHistory().get()
+
+        if status_code != 200:
+            return transactions_data, status_code # Propagate error messages and codes
+
+        # If status_code is 200, transactions_data will be either a list of transactions or a dict with "message"
+        if isinstance(transactions_data, dict) and "message" in transactions_data:
+            # This means "No transactions found..." message was returned
+            filtered_transactions = []
+        else:
+            filtered_transactions = transactions_data
 
         if not filtered_transactions:
-            return {"message": "No transactions found for the selected criteria."}, 200
+            pdf_output = generate_pdf_statement([]) # Generate empty PDF
+            return send_file(
+                pdf_output,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=f"transactions_{customer_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_no_data.pdf",
+            )
 
         pdf_output = generate_pdf_statement(filtered_transactions)
         return send_file(
