@@ -13,10 +13,6 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'super-secret-key')
 
-# Initialize database (create tables if they don't exist)
-with app.app_context():
-    init_db()
-
 @app.route("/transactions", methods=["GET"])
 def get_transactions():
     customer_id = request.args.get("customer_id")
@@ -125,4 +121,6 @@ def get_transactions():
         db.close()
 
 if __name__ == "__main__":
+    with app.app_context():
+        init_db()
     app.run(debug=True)
