@@ -1,224 +1,208 @@
-import os
-from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, make_response
-from faker import Faker
-import random
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-from models import db, Transaction
-from config import Config
+from flask import Flask, jsonify, request, send_file
+from flask_restful import Resource, Api
+from datetime import datetime
+import io
+from dateutil.relativedelta import relativedelta
 
 app = Flask(__name__)
-app.config.from_object(Config)
-db.init_app(app)
-faker = Faker()
+api = Api(app)
 
-# Helper function to generate dummy transactions
-def generate_dummy_transactions(num_transactions=100, account_number='1234567890'):
-    with app.app_context():
-        if Transaction.query.count() == 0:
-            print("Generating dummy transactions...")
-            for _ in range(num_transactions):
-                transaction_date = faker.date_time_between(start_date='-2y', end_date='now')
-                transaction_type = random.choice(['credit', 'debit'])
-                amount = round(random.uniform(5.0, 1000.0), 2)
-                description = faker.sentence(nb_words=6)
-                merchant_info = faker.company()
+# In-memory mock database for demonstration purposes
+mock_transactions = [
+    {
+        "transaction_id": "T001",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": "2023-01-15",
+        "transaction_type": "credit",
+        "amount": 100.00,
+        "currency": "USD",
+        "description": "Salary Deposit",
+        "merchant_info": "Employer Inc.",
+    },
+    {
+        "transaction_id": "T002",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": "2023-01-16",
+        "transaction_type": "debit",
+        "amount": 25.50,
+        "currency": "USD",
+        "description": "Grocery Shopping",
+        "merchant_info": "SuperMart",
+    },
+    {
+        "transaction_id": "T003",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": "2023-02-01",
+        "transaction_type": "credit",
+        "amount": 500.00,
+        "currency": "USD",
+        "description": "Bonus",
+        "merchant_info": "Employer Inc.",
+    },
+    {
+        "transaction_id": "T004",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": "2023-03-10",
+        "transaction_type": "debit",
+        "amount": 120.00,
+        "currency": "USD",
+        "description": "Utility Bill",
+        "merchant_info": "PowerCo",
+    },
+    {
+        "transaction_id": "T005",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": "2024-01-05",
+        "transaction_type": "credit",
+        "amount": 75.00,
+        "currency": "USD",
+        "description": "Refund",
+        "merchant_info": "Retailer X",
+    },
+    {
+        "transaction_id": "T006",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": "2024-02-20",
+        "transaction_type": "debit",
+        "amount": 300.00,
+        "currency": "USD",
+        "description": "Rent",
+        "merchant_info": "Landlord LLC",
+    },
+    {
+        "transaction_id": "T007",
+        "customer_id": "456",
+        "account_number": "ACC002",
+        "transaction_date": "2024-01-25",
+        "transaction_type": "credit",
+        "amount": 2000.00,
+        "currency": "USD",
+        "description": "Salary",
+        "merchant_info": "Another Employer",
+    },
+]
 
-                transaction = Transaction(
-                    account_number=account_number,
-                    transaction_date=transaction_date,
-                    transaction_type=transaction_type,
-                    amount=amount,
-                    description=description,
-                    merchant_info=merchant_info
-                )
-                db.session.add(transaction)
-            db.session.commit()
-            print(f"Generated {num_transactions} dummy transactions.")
-        else:
-            print("Dummy transactions already exist.")
-
-@app.before_request
-def create_tables():
-    with app.app_context():
-        db.create_all()
-        generate_dummy_transactions()
-
-@app.route('/transactions', methods=['GET'])
-def get_transactions():
-    account_number = request.args.get('account_number', '1234567890') # Default for dummy data
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    transaction_type = request.args.get('type')
-    min_amount = request.args.get('min_amount', type=float)
-    max_amount = request.args.get('max_amount', type=float)
-
-    query = Transaction.query.filter_by(account_number=account_number)
-
-    # Default to last 12 months
-    if not start_date_str and not end_date_str:
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=365)
-    else:
-        try:
-            if start_date_str: 
-                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-            else:
-                start_date = datetime.min # No start date filter
-            if end_date_str: 
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-            else:
-                end_date = datetime.max # No end date filter
-        except ValueError:
-            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
-
-    if start_date and end_date:
-        if start_date > end_date:
-            return jsonify({'error': 'Start date cannot be after end date.'}), 400
-        query = query.filter(Transaction.transaction_date.between(start_date, end_date + timedelta(days=1)))
-    elif start_date:
-        query = query.filter(Transaction.transaction_date >= start_date)
-    elif end_date:
-        query = query.filter(Transaction.transaction_date <= end_date + timedelta(days=1))
-
-    if transaction_type:
-        if transaction_type.lower() not in ['credit', 'debit']:
-            return jsonify({'error': 'Invalid transaction type. Use "credit" or "debit".'}), 400
-        query = query.filter_by(transaction_type=transaction_type.lower())
-
-    if min_amount is not None:
-        if min_amount < 0:
-            return jsonify({'error': 'Minimum amount cannot be negative.'}), 400
-        query = query.filter(Transaction.amount >= min_amount)
-
-    if max_amount is not None:
-        if max_amount < 0:
-            return jsonify({'error': 'Maximum amount cannot be negative.'}), 400
-        query = query.filter(Transaction.amount <= max_amount)
-
-    transactions = query.order_by(Transaction.transaction_date.desc()).all()
-
+def generate_pdf_statement(transactions):
+    """Simulates PDF generation and returns a BytesIO object."""
+    # In a real application, this would use a library like ReportLab or FPDF
+    # to create a properly formatted PDF. For this mock, we'll just return
+    # a simple text-based PDF simulation.
+    output = io.BytesIO()
+    output.write(b"Bank Statement\n\n")
+    output.write(f"Date: {datetime.now().strftime('%Y-%m-%d')}\n\n".encode())
     if not transactions:
-        return jsonify({'message': 'No transactions found for the selected criteria.'}), 404
+        output.write(b"No transactions found for the selected criteria.\n")
+    else:
+        for t in transactions:
+            output.write(
+                f"Date: {t['transaction_date']}, Type: {t['transaction_type'].capitalize()}, "
+                f"Amount: {t['currency']} {t['amount']:.2f}, Desc: {t['description']}\n".encode()
+            )
+    output.seek(0)
+    return output
 
-    return jsonify([t.to_dict() for t in transactions])
 
-@app.route('/transactions/download-pdf', methods=['GET'])
-def download_transactions_pdf():
-    account_number = request.args.get('account_number', '1234567890') # Default for dummy data
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-    transaction_type = request.args.get('type')
-    min_amount = request.args.get('min_amount', type=float)
-    max_amount = request.args.get('max_amount', type=float)
+class TransactionHistory(Resource):
+    def get(self):
+        customer_id = request.args.get("customer_id")
+        if not customer_id:
+            return {"message": "customer_id is required"}, 400
 
-    # Re-use the filtering logic from get_transactions
-    with app.test_request_context(query_string=request.query_string.decode('utf-8')):
-        response_from_get_transactions = get_transactions()
-        
-        # Check if get_transactions returned a tuple (response, status_code) or a Response object
-        if isinstance(response_from_get_transactions, tuple):
-            response_obj, status_code = response_from_get_transactions
+        # Default to last 12 months
+        end_date_str = request.args.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        except ValueError:
+            return {"message": "Invalid end_date format. Use YYYY-MM-DD"}, 400
+
+        start_date_str = request.args.get("start_date")
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            except ValueError:
+                return {"message": "Invalid start_date format. Use YYYY-MM-DD"}, 400
         else:
-            response_obj = response_from_get_transactions
-            status_code = response_obj.status_code
+            start_date = end_date - relativedelta(months=12)
 
-        if status_code == 404: # No transactions found, proceed to generate empty PDF
-            transactions_data = [] # Treat as empty for PDF generation
-        elif status_code != 200: # Other errors (e.g., 400 Bad Request), propagate them
-            return response_obj, status_code
-        else:
-            transactions_data = response_obj.get_json()
+        if start_date > end_date:
+            return {"message": "start_date cannot be after end_date"}, 400
+        if end_date > datetime.now():
+            return {"message": "end_date cannot be in the future"}, 400
 
-    if not transactions_data:
-        # Create a PDF indicating no transactions and return 200 OK
-        buffer = create_no_transactions_pdf(account_number, start_date_str, end_date_str, transaction_type, min_amount, max_amount)
-        response = make_response(buffer.getvalue())
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'attachment; filename=transaction_statement_no_data.pdf'
-        return response, 200 # Explicitly return 200 OK for empty PDF
+        transaction_type = request.args.get("type")
+        min_amount = request.args.get("min_amount", type=float)
+        max_amount = request.args.get("max_amount", type=float)
 
-    # Generate PDF
-    buffer = create_transactions_pdf(transactions_data, account_number)
+        if min_amount is not None and min_amount < 0:
+            return {"message": "min_amount cannot be negative"}, 400
+        if max_amount is not None and max_amount < 0:
+            return {"message": "max_amount cannot be negative"}, 400
+        if min_amount is not None and max_amount is not None and min_amount > max_amount:
+            return {"message": "min_amount cannot be greater than max_amount"}, 400
 
-    response = make_response(buffer.getvalue())
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = 'attachment; filename=transaction_statement.pdf'
-    return response, 200 # Explicitly return 200 OK for successful PDF generation
+        filtered_transactions = []
+        for t in mock_transactions:
+            if t["customer_id"] != customer_id:
+                continue
 
-def create_transactions_pdf(transactions_data, account_number):
-    from io import BytesIO
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
+            t_date = datetime.strptime(t["transaction_date"], "%Y-%m-%d")
 
-    story.append(Paragraph("Transaction Statement", styles['h1']))
-    story.append(Paragraph(f"Account Number: {account_number}", styles['h2']))
-    story.append(Spacer(1, 0.2 * 2.54 * 72))
+            if not (start_date <= t_date <= end_date):
+                continue
 
-    data = [['Date', 'Type', 'Description', 'Merchant', 'Amount', 'Currency']]
-    for t in transactions_data:
-        data.append([
-            datetime.fromisoformat(t['transaction_date']).strftime('%Y-%m-%d'),
-            t['transaction_type'].capitalize(),
-            t['description'],
-            t['merchant_info'],
-            f"{t['amount']:.2f}",
-            t['currency']
-        ])
+            if transaction_type and t["transaction_type"] != transaction_type.lower():
+                continue
 
-    table = Table(data)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
-    ]))
-    story.append(table)
+            if min_amount is not None and t["amount"] < min_amount:
+                continue
 
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+            if max_amount is not None and t["amount"] > max_amount:
+                continue
 
-def create_no_transactions_pdf(account_number, start_date_str, end_date_str, transaction_type, min_amount, max_amount):
-    from io import BytesIO
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
+            filtered_transactions.append(t)
 
-    story.append(Paragraph("Transaction Statement", styles['h1']))
-    story.append(Paragraph(f"Account Number: {account_number}", styles['h2']))
-    story.append(Spacer(1, 0.2 * 2.54 * 72))
-    story.append(Paragraph("No transactions found for the selected criteria.", styles['Normal']))
-    story.append(Spacer(1, 0.2 * 2.54 * 72))
+        if not filtered_transactions:
+            return {"message": "No transactions found for the selected criteria."}, 200
 
-    filter_details = []
-    if start_date_str: filter_details.append(f"Start Date: {start_date_str}")
-    if end_date_str: filter_details.append(f"End Date: {end_date_str}")
-    if transaction_type: filter_details.append(f"Type: {transaction_type.capitalize()}")
-    if min_amount is not None: filter_details.append(f"Min Amount: {min_amount:.2f}")
-    if max_amount is not None: filter_details.append(f"Max Amount: {max_amount:.2f}")
+        return jsonify(filtered_transactions)
 
-    if filter_details:
-        story.append(Paragraph("Applied Filters:", styles['h3']))
-        for detail in filter_details:
-            story.append(Paragraph(detail, styles['Normal']))
 
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+class TransactionDownload(Resource):
+    def get(self):
+        customer_id = request.args.get("customer_id")
+        if not customer_id:
+            return {"message": "customer_id is required"}, 400
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        generate_dummy_transactions()
+        # Re-use filtering logic from TransactionHistory
+        # This is a simplified approach; in a real app, you might refactor
+        # the filtering logic into a separate service/module.
+        with app.test_request_context(path='/transactions', query_string=request.args):
+            response = TransactionHistory().get()
+            if response[1] != 200: # Check status code
+                return response # Return error from TransactionHistory
+            
+            filtered_transactions = response[0].json # Extract JSON data from response
+
+        if not filtered_transactions:
+            return {"message": "No transactions found for the selected criteria."}, 200
+
+        pdf_output = generate_pdf_statement(filtered_transactions)
+        return send_file(
+            pdf_output,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"transactions_{customer_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf",
+        )
+
+
+api.add_resource(TransactionHistory, "/transactions")
+api.add_resource(TransactionDownload, "/transactions/download")
+
+if __name__ == "__main__":
     app.run(debug=True)
