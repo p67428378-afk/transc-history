@@ -1,0 +1,1 @@
+# Byte-compiled / optimized / DLL files\n__pycache__\n*.pyc\n*.pyd\n*.pyo\n*.env\nvenv/\n
