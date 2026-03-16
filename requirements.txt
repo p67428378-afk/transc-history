@@ -1,0 +1,1 @@
+Flask==2.3.2\nFlask-RESTful==0.3.10\nPyPDF2==3.0.1\n
