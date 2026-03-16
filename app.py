@@ -86,6 +86,28 @@ mock_transactions = [
         "description": "Salary",
         "merchant_info": "Another Employer",
     },
+    {
+        "transaction_id": "T008",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d"),
+        "transaction_type": "credit",
+        "amount": 50.00,
+        "currency": "USD",
+        "description": "Recent Deposit",
+        "merchant_info": "Bank",
+    },
+    {
+        "transaction_id": "T009",
+        "customer_id": "123",
+        "account_number": "ACC001",
+        "transaction_date": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d"),
+        "transaction_type": "debit",
+        "amount": 15.00,
+        "currency": "USD",
+        "description": "Coffee",
+        "merchant_info": "Cafe",
+    },
 ]
 
 def generate_pdf_statement(transactions):
@@ -168,7 +190,7 @@ class TransactionHistory(Resource):
             filtered_transactions.append(t)
 
         if not filtered_transactions:
-            return {"message": "No transactions found for the selected criteria."}, 200
+            return {"message": "No transactions found for the selected criteria."}, 200 # Still 200 for no results, as per AC
 
         return filtered_transactions, 200 # Return data and status code
 
