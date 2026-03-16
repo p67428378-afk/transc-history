@@ -117,12 +117,20 @@ def download_transactions_pdf():
 
     # Re-use the filtering logic from get_transactions
     with app.test_request_context(query_string=request.query_string.decode('utf-8')):
-        response = get_transactions()
-        if response.status_code != 200:
-            # Handle errors from get_transactions, e.g., invalid date format
-            return response
+        response_tuple = get_transactions()
         
-        transactions_data = response.get_json()
+        # Check if get_transactions returned a tuple (response, status_code) or a Response object
+        if isinstance(response_tuple, tuple):
+            response_obj, status_code = response_tuple
+        else:
+            response_obj = response_tuple
+            status_code = response_obj.status_code
+
+        if status_code != 200:
+            # Handle errors from get_transactions, e.g., invalid date format
+            return response_obj, status_code
+        
+        transactions_data = response_obj.get_json()
 
     if not transactions_data or transactions_data == {'message': 'No transactions found for the selected criteria.'}:
         # Create a PDF indicating no transactions
