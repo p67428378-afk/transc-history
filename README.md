@@ -1,1 +1,19 @@
-# Transaction History Service\n\nThis service provides a RESTful API for customers to view, filter, and download their transaction history. It is part of the banking management system.\n\n## Features\n\n*   View detailed transaction history for the last 12 months (default).\n*   Filter transactions by date range, transaction type (credit/debit), and amount.\n*   Download filtered transaction statements as PDF.\n\n## Architecture\n\nThis service is implemented as a microservice, communicating via RESTful APIs. It integrates with an existing banking transaction database for data retrieval and a separate PDF generation service for creating statements.\n\n## Setup and Installation\n\n1.  **Clone the repository:**\n    ```bash\n    git clone https://github.com/p67428378-afk/transc-history.git\n    cd transc-history\n    ```\n2.  **Create a virtual environment:**\n    ```bash\n    python -m venv venv\n    source venv/bin/activate  # On Windows, use `venv\\Scripts\\activate`\n    ```\n3.  **Install dependencies:**\n    ```bash\n    pip install -r requirements.txt\n    ```\n4.  **Configure the application:**\n    Edit `config.py` to set up database connections or other environment-specific variables. For local development, a dummy database is used.\n\n## Running the Service\n\n```bash\nflask run\n```\n\nThe API will be available at `http://127.0.0.1:5000` (or the port specified in your environment).\n\n## API Endpoints\n\n### `GET /transactions`\n\nRetrieves a list of transactions based on specified filters.\n\n**Query Parameters:**\n\n*   `start_date` (optional): Start date for filtering (YYYY-MM-DD). Defaults to 12 months ago.\n*   `end_date` (optional): End date for filtering (YYYY-MM-DD). Defaults to today.\n*   `type` (optional): Transaction type ('credit' or 'debit').\n*   `min_amount` (optional): Minimum transaction amount.\n*   `max_amount` (optional): Maximum transaction amount.\n\n**Example Request:**\n\n```\nGET /transactions?start_date=2023-01-01&end_date=2023-06-30&type=credit&min_amount=50&max_amount=200\n```\n\n### `GET /transactions/download-pdf`\n\nDownloads the filtered transaction history as a PDF. Accepts the same query parameters as `/transactions`.\n\n**Example Request:**\n\n```\nGET /transactions/download-pdf?start_date=2023-01-01&end_date=2023-06-30\n```\n\n## Development Notes\n\n*   **Database Integration:** Currently uses dummy data. In a production environment, this service would connect to a real banking transaction database.\n*   **PDF Generation:** Uses a basic PDF generation simulation. A dedicated, more robust PDF generation service would be integrated for production use.\n*   **Authentication/Authorization:** Not implemented in this basic version. Assumes an API Gateway handles this in a production setup.\n
+# Transaction History Management System
+
+This project implements the backend services for a banking transaction history management system, allowing customers to view, filter, and download their transaction history as PDF statements.
+
+## Features
+- View detailed transaction history
+- Filter transactions by date range, type (credit/debit), and amount
+- Download transaction statements as PDF
+
+## Architecture
+This system follows a microservices architecture, consisting of:
+- **Transaction History Service**: Responsible for retrieving and filtering transaction data.
+- **PDF Generation Service**: Responsible for generating PDF statements from transaction data.
+
+## Setup Instructions
+(To be filled in later)
+
+## Usage
+(To be filled in later)
