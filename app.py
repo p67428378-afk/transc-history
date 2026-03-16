@@ -116,7 +116,7 @@ def download_transactions_pdf():
     max_amount = request.args.get('max_amount', type=float)
 
     # Re-use the filtering logic from get_transactions
-    with app.test_request_context(query_string=request.query_string):
+    with app.test_request_context(query_string=request.query_string.decode('utf-8')):
         response = get_transactions()
         if response.status_code != 200:
             # Handle errors from get_transactions, e.g., invalid date format
