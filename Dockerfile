@@ -5,16 +5,21 @@ FROM python:3.9-slim-buster
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY . /app
+COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port the app runs on
+# Copy the rest of your application's source code
+COPY . .
+
+# Expose port 5000 for the Flask app
 EXPOSE 5000
 
-# Define environment variable
+# Set the FLASK_APP environment variable
 ENV FLASK_APP=app.py
 
-# Run the application
-CMD ["flask", "run", "--host", "0.0.0.0"]
+# Run the Flask application
+# Use a production-ready WSGI server like Gunicorn for deployment
+# For development, you can use `flask run --host=0.0.0.0`
+CMD ["flask", "run", "--host=0.0.0.0"]
