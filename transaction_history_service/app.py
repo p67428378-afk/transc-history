@@ -5,8 +5,8 @@ from sqlalchemy import and_, cast, Date
 from sqlalchemy.orm import joinedload
 from dotenv import load_dotenv
 
-from database import SessionLocal, engine, init_db, get_db
-from models import Customer, Transaction, TransactionType, Base
+from .database import SessionLocal, engine, init_db, get_db
+from .models import Customer, Transaction, TransactionType, Base
 
 load_dotenv()
 
