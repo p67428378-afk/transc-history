@@ -8,159 +8,31 @@ from reportlab.pdfgen import canvas
 app = Flask(__name__)
 app.config.from_object('config.Config')
 
-# Dummy Data - In a real application, this would come from a database
-dummy_transactions = [
-    {
-        "transaction_id": "T001",
-        "account_number": "ACC001",
-        "transaction_date": "2023-01-15",
-        "transaction_type": "credit",
-        "amount": 200.00,
-        "currency": "USD",
-        "description": "Salary Deposit",
-        "merchant_info": "Employer Inc.",
-    },
-    {
-        "transaction_id": "T002",
-        "account_number": "ACC001",
-        "transaction_date": "2023-01-16",
-        "transaction_type": "debit",
-        "amount": 50.00,
-        "currency": "USD",
-        "description": "Groceries",
-        "merchant_info": "SuperMart",
-    },
-    {
-        "transaction_id": "T003",
-        "account_number": "ACC001",
-        "transaction_date": "2023-02-01",
-        "transaction_type": "credit",
-        "amount": 1000.00,
-        "currency": "USD",
-        "description": "Bonus",
-        "merchant_info": "Employer Inc.",
-    },
-    {
-        "transaction_id": "T004",
-        "account_number": "ACC002",
-        "transaction_date": "2023-02-05",
-        "transaction_type": "debit",
-        "amount": 25.00,
-        "currency": "USD",
-        "description": "Coffee",
-        "merchant_info": "Cafe XYZ",
-    },
-    {
-        "transaction_id": "T005",
-        "account_number": "ACC001",
-        "transaction_date": "2023-03-10",
-        "transaction_type": "debit",
-        "amount": 150.00,
-        "currency": "USD",
-        "description": "Utility Bill",
-        "merchant_info": "PowerCo",
-    },
-    {
-        "transaction_id": "T006",
-        "account_number": "ACC001",
-        "transaction_date": "2023-04-20",
-        "transaction_type": "credit",
-        "amount": 300.00,
-        "currency": "USD",
-        "description": "Freelance Payment",
-        "merchant_info": "Client A",
-    },
-    {
-        "transaction_id": "T007",
-        "account_number": "ACC001",
-        "transaction_date": "2023-05-01",
-        "transaction_type": "debit",
-        "amount": 75.00,
-        "currency": "USD",
-        "description": "Internet Bill",
-        "merchant_info": "ISP Corp",
-    },
-    {
-        "transaction_id": "T008",
-        "account_number": "ACC001",
-        "transaction_date": "2023-06-15",
-        "transaction_type": "credit",
-        "amount": 250.00,
-        "currency": "USD",
-        "description": "Refund",
-        "merchant_info": "Retailer B",
-    },
-    {
-        "transaction_id": "T009",
-        "account_number": "ACC001",
-        "transaction_date": "2023-07-01",
-        "transaction_type": "debit",
-        "amount": 120.00,
-        "currency": "USD",
-        "description": "Rent",
-        "merchant_info": "Landlord LLC",
-    },
-    {
-        "transaction_id": "T010",
-        "account_number": "ACC001",
-        "transaction_date": "2023-08-10",
-        "transaction_type": "credit",
-        "amount": 500.00,
-        "currency": "USD",
-        "description": "Investment Dividend",
-        "merchant_info": "Investments Co.",
-    },
-    {
-        "transaction_id": "T011",
-        "account_number": "ACC001",
-        "transaction_date": "2023-09-05",
-        "transaction_type": "debit",
-        "amount": 30.00,
-        "currency": "USD",
-        "description": "Subscription",
-        "merchant_info": "Streaming Service",
-    },
-    {
-        "transaction_id": "T012",
-        "account_number": "ACC001",
-        "transaction_date": "2023-10-20",
-        "transaction_type": "credit",
-        "amount": 150.00,
-        "currency": "USD",
-        "description": "Gift",
-        "merchant_info": "Friend",
-    },
-    {
-        "transaction_id": "T013",
-        "account_number": "ACC001",
-        "transaction_date": "2023-11-11",
-        "transaction_type": "debit",
-        "amount": 80.00,
-        "currency": "USD",
-        "description": "Dinner",
-        "merchant_info": "Restaurant X",
-    },
-    {
-        "transaction_id": "T014",
-        "account_number": "ACC001",
-        "transaction_date": "2023-12-01",
-        "transaction_type": "credit",
-        "amount": 2000.00,
-        "currency": "USD",
-        "description": "Year-end Bonus",
-        "merchant_info": "Employer Inc.",
-    },
-    {
-        "transaction_id": "T015",
-        "account_number": "ACC001",
-        "transaction_date": "2024-01-05",
-        "transaction_type": "debit",
-        "amount": 60.00,
-        "currency": "USD",
-        "description": "Books",
-        "merchant_info": "Bookstore",
-    },
-]
+# Dynamic Dummy Data Generation
+def generate_dummy_transactions(num_transactions=15):
+    transactions = []
+    today = datetime.now()
+    for i in range(num_transactions):
+        days_ago = i * 20 # Spread transactions over time
+        transaction_date = today - timedelta(days=days_ago)
+        transaction_type = "credit" if i % 3 == 0 else "debit"
+        amount = round(10 + i * 10 + (i % 5) * 2.5, 2)
+        description = f"Transaction {i+1}"
+        merchant_info = f"Merchant {chr(65 + i)}"
+
+        transactions.append({
+            "transaction_id": f"T{i+1:03d}",
+            "account_number": "ACC001",
+            "transaction_date": transaction_date.strftime('%Y-%m-%d'),
+            "transaction_type": transaction_type,
+            "amount": amount,
+            "currency": "USD",
+            "description": description,
+            "merchant_info": merchant_info,
+        })
+    return transactions
+
+dummy_transactions = generate_dummy_transactions()
 
 def get_filtered_transactions():
     # Default to last 12 months
