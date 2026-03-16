@@ -117,28 +117,28 @@ def download_transactions_pdf():
 
     # Re-use the filtering logic from get_transactions
     with app.test_request_context(query_string=request.query_string.decode('utf-8')):
-        response_tuple = get_transactions()
+        response_from_get_transactions = get_transactions()
         
         # Check if get_transactions returned a tuple (response, status_code) or a Response object
-        if isinstance(response_tuple, tuple):
-            response_obj, status_code = response_tuple
+        if isinstance(response_from_get_transactions, tuple):
+            response_obj, status_code = response_from_get_transactions
         else:
-            response_obj = response_tuple
+            response_obj = response_from_get_transactions
             status_code = response_obj.status_code
 
         if status_code != 200:
-            # Handle errors from get_transactions, e.g., invalid date format
+            # If get_transactions returned an error (e.g., invalid date format), propagate it
             return response_obj, status_code
         
         transactions_data = response_obj.get_json()
 
     if not transactions_data or transactions_data == {'message': 'No transactions found for the selected criteria.'}:
-        # Create a PDF indicating no transactions
+        # Create a PDF indicating no transactions and return 200 OK
         buffer = create_no_transactions_pdf(account_number, start_date_str, end_date_str, transaction_type, min_amount, max_amount)
         response = make_response(buffer.getvalue())
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = 'attachment; filename=transaction_statement_no_data.pdf'
-        return response
+        return response, 200 # Explicitly return 200 OK for empty PDF
 
     # Generate PDF
     buffer = create_transactions_pdf(transactions_data, account_number)
@@ -146,7 +146,7 @@ def download_transactions_pdf():
     response = make_response(buffer.getvalue())
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=transaction_statement.pdf'
-    return response
+    return response, 200 # Explicitly return 200 OK for successful PDF generation
 
 def create_transactions_pdf(transactions_data, account_number):
     from io import BytesIO
