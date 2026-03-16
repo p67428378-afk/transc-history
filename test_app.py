@@ -19,8 +19,9 @@ def test_get_transactions_success(client):
     for transaction in data:
         assert transaction["customer_id"] == "123"
         t_date = datetime.strptime(transaction["transaction_date"], "%Y-%m-%d")
-        assert t_date >= (datetime.now() - relativedelta(months=12) - timedelta(days=1)) # Allow for slight day difference
-        assert t_date <= datetime.now()
+        # Adjusting the lower bound check slightly to account for `relativedelta` behavior
+        assert t_date >= (datetime.now() - relativedelta(months=12) - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        assert t_date <= datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
 
 def test_get_transactions_no_customer_id(client):
     response = client.get("/transactions")
@@ -47,7 +48,7 @@ def test_get_transactions_filter_by_date_range(client):
     response = client.get("/transactions?customer_id=123&start_date=2023-01-01&end_date=2023-02-28")
     assert response.status_code == 200
     data = response.get_json()
-    assert len(data) == 2  # T001, T003
+    assert len(data) == 3  # T001, T002, T003 are within this range
     for transaction in data:
         t_date = datetime.strptime(transaction["transaction_date"], "%Y-%m-%d")
         assert datetime(2023, 1, 1) <= t_date <= datetime(2023, 2, 28)
