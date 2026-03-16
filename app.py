@@ -126,13 +126,14 @@ def download_transactions_pdf():
             response_obj = response_from_get_transactions
             status_code = response_obj.status_code
 
-        if status_code != 200:
-            # If get_transactions returned an error (e.g., invalid date format), propagate it
+        if status_code == 404: # No transactions found, proceed to generate empty PDF
+            transactions_data = [] # Treat as empty for PDF generation
+        elif status_code != 200: # Other errors (e.g., 400 Bad Request), propagate them
             return response_obj, status_code
-        
-        transactions_data = response_obj.get_json()
+        else:
+            transactions_data = response_obj.get_json()
 
-    if not transactions_data or transactions_data == {'message': 'No transactions found for the selected criteria.'}:
+    if not transactions_data:
         # Create a PDF indicating no transactions and return 200 OK
         buffer = create_no_transactions_pdf(account_number, start_date_str, end_date_str, transaction_type, min_amount, max_amount)
         response = make_response(buffer.getvalue())
